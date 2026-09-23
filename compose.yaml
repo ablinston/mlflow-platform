@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17
+    # Set up the service for the database
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Latter is where Postgres will save the db in the container
+    # Add environment variables with the Postgres credentials
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  # The name to call the service
+  mlflow:
+    # Build from this folder
+    build: .
+    ports:
+    # Map port 8080 outside to port 5000 inside the container (where MLFlow listens)
+      - "8080:5000"
+    
+
+
+# Define the volumes
+volumes:
+  pgdata: # Docker will decide where this is saved locally automatically
