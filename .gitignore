@@ -1,3 +1,18 @@
+
+# local MLflow runs from testing
+mlruns/
+mlartifacts/
+mlflow.db
+
+# kubeconfig and secrets
+kubeconfig*
+secrets/
+!secrets/.gitkeep
+
+# Windows
+Thumbs.db
+desktop.ini
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
