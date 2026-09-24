@@ -9,7 +9,15 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-
+    # Run a healthcheck every 5 seconds so MLflow knows when to start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s        # normal running: every 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s    # a startup window of up to 30s...
+      start_interval: 2s
+    
   # The name to call the service
   mlflow:
     # Build from this folder
@@ -17,6 +25,16 @@ services:
     ports:
     # Map port 8080 outside to port 5000 inside the container (where MLFlow listens)
       - "8080:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL} 
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      MLFLOW_ARTIFACTS_DESTINATION: s3://${BACKBLAZE_BUCKET_NAME}/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
     
 
 
