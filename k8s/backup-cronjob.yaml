@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: mlflow
+spec:
+  schedule: "0 23 * * *"
+  timeZone: Europe/London
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: backup
+              emptyDir: {}
+          initContainers:
+            - name: dump
+              image: postgres:17
+              command: ["bash", "-c", "set -o pipefail; pg_dumpall -h postgres -U \"$POSTGRES_USER\" | gzip > /backup/mlflow.sql.gz"]
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_PASSWORD
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: upload
+              image: amazon/aws-cli:2.37.4
+              command: ["sh", "-c", "aws s3 cp /backup/mlflow.sql.gz s3://ab-mlflow-db-backups/mlflow-$(date +%Y-%m-%dT%H%M).sql.gz --endpoint-url https://s3.eu-central-003.backblazeb2.com"]
+              env:
+                - name: AWS_DEFAULT_REGION
+                  value: eu-central-003
+              envFrom:
+                - secretRef:
+                    name: backup-b2
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup

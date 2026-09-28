@@ -1,0 +1,13 @@
+# This file configures the http addresses to route the user to the correct MLflow pod
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        exposedPort: 8081
+      websecure:
+        exposedPort: 8444
