@@ -10,6 +10,7 @@ data:
   MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
   MALLOC_ARENA_MAX: "2"
   MLFLOW_SERVER_ALLOWED_HOSTS: "mlflow-mma-model.192.168.68.51.nip.io,mlflow-mma-model.192.168.68.51.nip.io:*,192.168.68.51:*"
+  MLFLOW_SERVER_CORS_ALLOWED_ORIGINS: "http://mlflow-mma-model.192.168.68.51.nip.io:8081"
 
 ---
 apiVersion: v1
