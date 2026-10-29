@@ -3,6 +3,8 @@ Self-hosted MLflow on Kubernetes, with Postgres for tracking and Backblaze B2 fo
 
 This repo contains the deployment for an MLFlow server with multiple instances of MLflow for different projects. They used a shared Postgres pod, and each MLflow instance will run on its own pod from a central image.
 
+It also holds the deployment for the MMA model serving API, which runs in its own `model-serving` namespace.
+
 ## Building the image
 
 The image gets built for both my PC (amd64) and the Pi (arm64) and pushed to GHCR in one go. amd64 covers Intel and AMD chips so the i5 is fine.
@@ -127,3 +129,30 @@ To take an instance offline without deleting anything, scale it to 0. Set `repli
 ```
 kubectl scale deployment mlflow-<name> -n mlflow --replicas=0
 ```
+
+## Model serving
+
+The cluster also runs the MMA prediction API, in the `model-serving` namespace. Its image is built from the `serving/` folder in the `mma_model_lite` repo rather than this one, and pushed to `ghcr.io/ablinston/mma-serving`.
+
+Two files, kept apart so deleting the app can't take the data volume with it:
+
+- `k8s/mma-model-serving.yaml` has the ConfigMap, PVC, Service, Deployment and Ingress
+- `k8s/persistent-volume.yaml` has a static hostPath PV pointing at `/home/andy/Repos/mma_model_lite/data/final_dataset` on the Pi
+
+The dataset isn't baked into the image, the pod mounts that folder read-only, so the parquet has to be there already or the pod starts and then dies. It's the live copy the pipeline refreshes, and the service only reads it at startup, so a new card needs a rollout restart before it shows up:
+
+```
+kubectl rollout restart deployment mma-model-serving -n model-serving
+```
+
+To deploy from scratch:
+
+```
+kubectl apply -f k8s/namespace.yaml
+kubectl create secret generic mma-model-serving-secrets -n model-serving --from-env-file=secrets/mma-model-serving.env
+kubectl apply -f k8s/persistent-volume.yaml -f k8s/mma-model-serving.yaml
+```
+
+`secrets/mma-model-serving.env` holds `AUTH_TOKEN`, and the value must not be quoted. `--from-env-file` takes everything after the `=` literally, so the quote marks end up inside the token and every `/predict` call comes back 401.
+
+It answers on `http://mma-model.192.168.68.51.nip.io:8081/` through traefik, or on nodePort 30550 once that port is open in ufw. `/health` and `/ready` need no token, `/predict` does.
